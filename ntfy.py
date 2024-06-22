@@ -1,7 +1,8 @@
 import logging
-import requests
-import urllib.parse
+import os
+
 import pwnagotchi.plugins as plugins
+import requests
 
 '''
 Here's an example configuration for this plugin:
@@ -27,6 +28,7 @@ class ntfy(plugins.Plugin):
         self.cache = None
         self.queue = []
         self.name = None
+        self.icon_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "pwny_icon.png")
 
     def _check_options(self):
         if 'ntfy_url' not in self.options:
@@ -40,6 +42,11 @@ class ntfy(plugins.Plugin):
         self._check_options()
         self.priority = self.options["priority"]
         self.cache = self.options["cache_notifs"]
+
+        if not os.path.exists(self.icon_path):
+            self.icon = None  # todo add download
+        else:
+            self.icon = self.icon_path
 
         if self.options["ntfy_url"]:
             self.url = f'https://{self.options["ntfy_url"]}'
@@ -58,7 +65,8 @@ class ntfy(plugins.Plugin):
                 headers={
                     'Title': title,
                     'Priority': str(self.priority),
-                    "Tags": str(tags)
+                    "Tags": str(tags),
+                    "Icon": str(self.icon)
                 },
                 data=message
             )
@@ -104,7 +112,6 @@ class ntfy(plugins.Plugin):
         tag = f'smiling_face_with_three_hearts'
         msg = f'{self.name} detected a new peer: {peer.name} (♥‿‿♥)'.encode('utf-8')
         tl = 'Peer Detected!'
-        # urllib.parse.quote_plus(string)
         self._send_notification(tl, msg, tag)
 
     def on_peer_lost(self, agent, peer):
