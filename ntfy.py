@@ -1,6 +1,6 @@
 import logging
 import requests
-
+import urllib.parse
 import pwnagotchi.plugins as plugins
 
 '''
@@ -12,6 +12,7 @@ main.plugins.ntfy.priority = 3
 # Should the plugin cache notifications as long as the pwnagotchi is offline ?
 main.plugins.ntfy.cache_notifs = false
 '''
+
 
 class ntfy(plugins.Plugin):
     __author__ = '0xsharkboy'
@@ -42,11 +43,12 @@ class ntfy(plugins.Plugin):
 
         if self.options["ntfy_url"]:
             self.url = f'https://{self.options["ntfy_url"]}'
-            logging.info(f'[ntfy] plugin loaded with the url: {self.options["ntfy_url"]}')
+            logging.info(
+                f'[ntfy] plugin loaded with the url: {self.options["ntfy_url"]} and priority {self.options["priority"]}')
         else:
             logging.warning('[ntfy] plugin loaded but no URL specified! Plugin will not send notifications.')
 
-    def _send_notification(self, title, message):
+    def _send_notification(self, title, message, tags=None):
         if not self.url:
             return
 
@@ -55,20 +57,22 @@ class ntfy(plugins.Plugin):
                 self.url,
                 headers={
                     'Title': title,
-                    'Priority' : str(self.priority)
+                    'Priority': str(self.priority),
+                    "Tags": str(tags)
                 },
                 data=message
             )
         except requests.RequestException as e:
             if self.cache:
                 self.queue.append((title, message))
-
+            logging.warning(f'[ntfy] notification not sent due to: {e}')
+        except Exception as e:
             logging.warning(f'[ntfy] notification not sent due to: {e}')
 
-    def on_internet_available(self, agent):
+    def on_internet_available(self, agent, tag):
+        logging.info(f'oh hai wifi')
         if not self.queue:
             return
-        
         for _ in range(len(self.queue)):
             title, message = self.queue.pop(0)
             self._send_notification(title, message)
@@ -76,24 +80,36 @@ class ntfy(plugins.Plugin):
     def on_ready(self, agent):
         if not self.name:
             self.name = agent._config["main"]["name"]
+        tag = f'fire'
+        msg = 'Let\'s pwn the world! (⌐■_■)'.encode('utf-8')
+        tl = f'{self.name} woke up'
+        self._send_notification(tl, msg, tag)
 
-        self._send_notification(f'{self.name} woke up', 'Let\'s pwn the world!')
-    
     def on_ai_ready(self, agent):
-        self._send_notification('AI is ready', 'Let\'s learn together!')
+        tag = f'signal_strength'
+        msg = 'Let\'s learn together! (⌐■_■)'.encode('utf-8')
+        tl = 'AI is ready'
+        self._send_notification(tl, msg, tag)
 
     def on_association(self, agent, access_point):
         ssid = access_point.get("hostname", '')
         bssid = access_point.get("mac", '')
         what = ssid if ssid != '' and ssid != '<hidden>' else bssid
-
-        self._send_notification('Hey!', f'{self.name} is associating to {what}')
+        tag = 'upside_down_face'
+        msg = f'{self.name} is associating to {what} (°▃▃°)'.encode('utf-8')
+        tl = 'Hey!'
+        self._send_notification(tl, msg, tag)
 
     def on_peer_detected(self, agent, peer):
-        self._send_notification('Peer Detected!', f'{self.name} detected a new peer: {peer}')
+        tag = f'smiling_face_with_three_hearts'
+        msg = f'{self.name} detected a new peer: {peer.name} (♥‿‿♥)'.encode('utf-8')
+        tl = 'Peer Detected!'
+        # urllib.parse.quote_plus(string)
+        self._send_notification(tl, msg, tag)
 
     def on_peer_lost(self, agent, peer):
-        self._send_notification('Peer Lost', f'{self.name} lost contact with peer: {peer}')
+        tag = f'sob'
+        self._send_notification('Peer Lost', f'{self.name} lost contact with peer: {peer.name} (ب__ب)', tag)
 
     def on_deauthentication(self, agent, access_point, client_station):
         client = client_station.get("hostname", client_station["mac"])
